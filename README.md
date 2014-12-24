@@ -36,6 +36,10 @@ Some common ids are found in `supported_devices.py`
     printer = Usb(0x04b8,0x0e03)
     printer.receipt("<div>Hello World!</div>")
 
+## Install
+
+    sudo pip install pyxmlescpos
+
 ## Limitations
 
 The utf8 support is incomplete, mostly asian languages
