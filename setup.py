@@ -19,7 +19,7 @@ setup(
     # https://packaging.python.org/en/latest/development.html#single-sourcing-the-version
     version='0.1.0',
 
-    description='Python XML-ESC/POS Library',
+    description='Print XML-defined Receipts on ESC/POS Receipt Printers"
     long_description=long_description,
 
     # The project's main homepage.
@@ -43,7 +43,7 @@ setup(
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
-        'Topic :: Software Development :: ESC / POS Printing',
+        'Topic :: Printing',
 
         # Pick your license as you wish (should match "license" above)
         'License :: OSI Approved :: MIT License',
