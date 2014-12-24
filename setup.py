@@ -24,6 +24,7 @@ setup(
 
     # The project's main homepage.
     url='https://github.com/fvdsn/py-xml-escpos',
+    download_url = 'https://github.com/fvdsn/py-xml-escpos/tarball/0.1.0',
 
     # Author details
     author='Frédéric van der Essen & Manuel F Martinez',
