@@ -19,7 +19,7 @@ setup(
     # https://packaging.python.org/en/latest/development.html#single-sourcing-the-version
     version='0.1.0',
 
-    description='Print XML-defined Receipts on ESC/POS Receipt Printers"
+    description='Print XML-defined Receipts on ESC/POS Receipt Printers',
     long_description=long_description,
 
     # The project's main homepage.
