@@ -22,106 +22,105 @@ class Usb(Escpos):
         @param out_ep    : Output end point
         """
 
-        self.errorText = ":: Error Ticket :: \n------------------\nAnother ticket going to be printed\n\n\n\n\n\n"+PAPER_FULL_CUT
+        self.errorText = "ERROR PRINTER\n\n\n\n\n\n"+PAPER_FULL_CUT
 
         self.idVendor  = idVendor
         self.idProduct = idProduct
         self.interface = interface
         self.in_ep     = in_ep
         self.out_ep    = out_ep
-        self.open()
-
+	self.open()
 
     def open(self):
         """ Search device on USB tree and set is as escpos device """
-        self.device = usb.core.find(idVendor=self.idVendor, idProduct=self.idProduct)
+        
+	self.device = usb.core.find(idVendor=self.idVendor, idProduct=self.idProduct)
         if self.device is None:
-            print "Cable isn't plugged in"
-
-        if self.device.is_kernel_driver_active(self.interface):
-            try:
-                self.device.detach_kernel_driver(self.interface)
-            except usb.core.USBError as e:
-                print "Could not detatch kernel driver: %s" % str(e)
-        try:
+	    raise NoDeviceError()
+	try:
+            if self.device.is_kernel_driver_active(self.interface):
+                self.device.detach_kernel_driver(self.interface) 
             self.device.set_configuration()
-        except usb.core.USBError as e:
-            print "Could not set configuration: %s" % str(e)
-        try:
             usb.util.claim_interface(self.device, self.interface)
         except usb.core.USBError as e:
-            print "Impossible to claim the interface %s" % str(e)
-
+	    raise HandleDeviceError(e)
 
     def close(self):
         i = 0
-        while not self.device.is_kernel_driver_active(self.interface):
+	while True:
             try:
-                usb.util.release_interface(self.device, self.interface)
-                self.device.attach_kernel_driver(self.interface)
-                usb.util.dispose_resources(self.device)
+                if not self.device.is_kernel_driver_active(self.interface):
+                    usb.util.release_interface(self.device, self.interface)
+                    self.device.attach_kernel_driver(self.interface)
+                    usb.util.dispose_resources(self.device)
+	        else:
+ 	            self.device = None
+		    return True
             except usb.core.USBError as e:
                 i += 1
-                if i > 50:
-                    print "Impossible to attach kernel driver %s" % str(e)
+                if i > 100:
                     return False
-
+	    
             sleep(0.1)
-        self.device = None
-        print "Printer released\n"
-        return True
 
     def _raw(self, msg):
         """ Print any command sent in raw format """
         if len(msg) != self.device.write(self.out_ep, msg, self.interface):
             self.device.write(self.out_ep, self.errorText, self.interface)
             raise TicketNotPrinted()
+    
+    def __extract_status(self):
+        maxiterate = 0
+	rep = None
+        while rep == None:
+            maxiterate += 1
+            if maxiterate > 10000:
+                raise NoStatusError()
+            r = self.device.read(self.in_ep, 20, self.interface).tolist()
+            while len(r):
+		rep = r.pop()
+	return rep
 
-
-    def get_status(self):
+    def get_printer_status(self):
         status = {
             'printer': {}, 
             'offline': {}, 
             'error'  : {}, 
             'paper'  : {},
         }
-        self.device.write(self.out_ep, DLE_EOT_PRINTER, self.interface)
-        self.device.write(self.out_ep, DLE_EOT_OFFLINE, self.interface)
-        self.device.write(self.out_ep, DLE_EOT_ERROR, self.interface)
-        self.device.write(self.out_ep, DLE_EOT_PAPER, self.interface)
-        rep = []
-        maxiterate = 0
-        while len(rep) < 4:
-            maxiterate += 1
-            if maxiterate > 10000:
-                raise NoStatusError()
-            r = self.device.read(self.in_ep, 20, self.interface).tolist()
-            while len(r):
-                rep.append(r.pop())
-        print rep
+	rep = []
 
-        status['printer']['status_code']     = rep[0]
-        status['printer']['status_error']    = not ((rep[0] & 147) == 18)
-        status['printer']['online']          = not bool(rep[0] & 8)
-        status['printer']['recovery']        = bool(rep[0] & 32)
-        status['printer']['paper_feed_on']   = bool(rep[0] & 64)
-        status['printer']['drawer_pin_high'] = bool(rep[0] & 4)
-        status['offline']['status_code']     = rep[1]
-        status['offline']['status_error']    = not ((rep[1] & 147) == 18)
-        status['offline']['cover_open']      = bool(rep[1] & 4)
-        status['offline']['paper_feed_on']   = bool(rep[1] & 8)
-        status['offline']['paper']           = not bool(rep[1] & 32)
-        status['offline']['error']           = bool(rep[1] & 64)
-        status['error']['status_code']       = rep[2]
-        status['error']['status_error']      = not ((rep[2] & 147) == 18)
-        status['error']['recoverable']       = bool(rep[2] & 4)
-        status['error']['autocutter']        = bool(rep[2] & 8)
-        status['error']['unrecoverable']     = bool(rep[2] & 32)
-        status['error']['auto_recoverable']  = not bool(rep[2] & 64)
-        status['paper']['status_code']       = rep[3]
-        status['paper']['status_error']      = not ((rep[3] & 147) == 18)
-        status['paper']['near_end']          = bool(rep[3] & 12)
-        status['paper']['present']           = not bool(rep[3] & 96)
+        self.device.write(self.out_ep, DLE_EOT_PRINTER, self.interface)
+    	printer = self.__extract_status()    
+	self.device.write(self.out_ep, DLE_EOT_OFFLINE, self.interface)
+        offline = self.__extract_status()
+	self.device.write(self.out_ep, DLE_EOT_ERROR, self.interface)
+        error = self.__extract_status()
+	self.device.write(self.out_ep, DLE_EOT_PAPER, self.interface)
+	paper = self.__extract_status()
+	print printer, offline, error, paper        
+	status['printer']['status_code']     = printer
+        status['printer']['status_error']    = not ((printer & 147) == 18)
+        status['printer']['online']          = not bool(printer & 8)
+        status['printer']['recovery']        = bool(printer & 32)
+        status['printer']['paper_feed_on']   = bool(printer & 64)
+        status['printer']['drawer_pin_high'] = bool(printer & 4)
+        status['offline']['status_code']     = offline
+        status['offline']['status_error']    = not ((offline & 147) == 18)
+        status['offline']['cover_open']      = bool(offline & 4)
+        status['offline']['paper_feed_on']   = bool(offline & 8)
+        status['offline']['paper']           = not bool(offline & 32)
+        status['offline']['error']           = bool(offline & 64)
+        status['error']['status_code']       = error
+        status['error']['status_error']      = not ((error & 147) == 18)
+        status['error']['recoverable']       = bool(error & 4)
+        status['error']['autocutter']        = bool(error & 8)
+        status['error']['unrecoverable']     = bool(error & 32)
+        status['error']['auto_recoverable']  = not bool(error & 64)
+        status['paper']['status_code']       = paper
+        status['paper']['status_error']      = not ((paper & 147) == 18)
+        status['paper']['near_end']          = bool(paper & 12)
+        status['paper']['present']           = not bool(paper & 96)
 
         return status
 
@@ -201,3 +200,4 @@ class Network(Escpos):
     def __del__(self):
         """ Close TCP connection """
         self.device.close()
+

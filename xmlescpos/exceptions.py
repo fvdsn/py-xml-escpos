@@ -97,3 +97,20 @@ class TicketNotPrinted(Error):
     def __str__(self):
         return "A part of the ticket was not been printed"
 
+class NoDeviceError(Error):
+    def __init__(self, msg=""):
+        Error.__init__(self, msg)
+        self.msg = msg
+        self.resultcode = 90
+
+    def __str__(self):
+        return "Impossible to find the printer Device"
+
+class HandleDeviceError(Error):
+    def __init__(self, msg=""):
+        Error.__init__(self, msg)
+        self.msg = msg
+        self.resultcode = 100
+
+    def __str__(self):
+        return "Impossible to handle device"
