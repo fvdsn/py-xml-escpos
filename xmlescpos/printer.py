@@ -8,6 +8,7 @@ import socket
 from escpos import *
 from constants import *
 from exceptions import *
+from time import sleep
 
 class Usb(Escpos):
     """ Define USB printer """
@@ -20,6 +21,9 @@ class Usb(Escpos):
         @param in_ep     : Input end point
         @param out_ep    : Output end point
         """
+
+        self.errorText = ":: Error Ticket :: \n------------------\nAnother ticket going to be printed\n\n\n\n\n\n"+PAPER_FULL_CUT
+
         self.idVendor  = idVendor
         self.idProduct = idProduct
         self.interface = interface
@@ -34,28 +38,97 @@ class Usb(Escpos):
         if self.device is None:
             print "Cable isn't plugged in"
 
-        if self.device.is_kernel_driver_active(0):
+        if self.device.is_kernel_driver_active(self.interface):
             try:
-                self.device.detach_kernel_driver(0)
+                self.device.detach_kernel_driver(self.interface)
             except usb.core.USBError as e:
                 print "Could not detatch kernel driver: %s" % str(e)
-
         try:
             self.device.set_configuration()
-            self.device.reset()
         except usb.core.USBError as e:
             print "Could not set configuration: %s" % str(e)
+        try:
+            usb.util.claim_interface(self.device, self.interface)
+        except usb.core.USBError as e:
+            print "Impossible to claim the interface %s" % str(e)
 
+
+    def close(self):
+        i = 0
+        while not self.device.is_kernel_driver_active(self.interface):
+            try:
+                usb.util.release_interface(self.device, self.interface)
+                self.device.attach_kernel_driver(self.interface)
+                usb.util.dispose_resources(self.device)
+            except usb.core.USBError as e:
+                i += 1
+                if i > 50:
+                    print "Impossible to attach kernel driver %s" % str(e)
+                    return False
+
+            sleep(0.1)
+        self.device = None
+        print "Printer released\n"
+        return True
 
     def _raw(self, msg):
         """ Print any command sent in raw format """
-        self.device.write(self.out_ep, msg, self.interface)
+        if len(msg) != self.device.write(self.out_ep, msg, self.interface):
+            self.device.write(self.out_ep, self.errorText, self.interface)
+            raise TicketNotPrinted()
 
+
+    def get_status(self):
+        status = {
+            'printer': {}, 
+            'offline': {}, 
+            'error'  : {}, 
+            'paper'  : {},
+        }
+        self.device.write(self.out_ep, DLE_EOT_PRINTER, self.interface)
+        self.device.write(self.out_ep, DLE_EOT_OFFLINE, self.interface)
+        self.device.write(self.out_ep, DLE_EOT_ERROR, self.interface)
+        self.device.write(self.out_ep, DLE_EOT_PAPER, self.interface)
+        rep = []
+        maxiterate = 0
+        while len(rep) < 4:
+            maxiterate += 1
+            if maxiterate > 10000:
+                raise NoStatusError()
+            r = self.device.read(self.in_ep, 20, self.interface).tolist()
+            while len(r):
+                rep.append(r.pop())
+        print rep
+
+        status['printer']['status_code']     = rep[0]
+        status['printer']['status_error']    = not ((rep[0] & 147) == 18)
+        status['printer']['online']          = not bool(rep[0] & 8)
+        status['printer']['recovery']        = bool(rep[0] & 32)
+        status['printer']['paper_feed_on']   = bool(rep[0] & 64)
+        status['printer']['drawer_pin_high'] = bool(rep[0] & 4)
+        status['offline']['status_code']     = rep[1]
+        status['offline']['status_error']    = not ((rep[1] & 147) == 18)
+        status['offline']['cover_open']      = bool(rep[1] & 4)
+        status['offline']['paper_feed_on']   = bool(rep[1] & 8)
+        status['offline']['paper']           = not bool(rep[1] & 32)
+        status['offline']['error']           = bool(rep[1] & 64)
+        status['error']['status_code']       = rep[2]
+        status['error']['status_error']      = not ((rep[2] & 147) == 18)
+        status['error']['recoverable']       = bool(rep[2] & 4)
+        status['error']['autocutter']        = bool(rep[2] & 8)
+        status['error']['unrecoverable']     = bool(rep[2] & 32)
+        status['error']['auto_recoverable']  = not bool(rep[2] & 64)
+        status['paper']['status_code']       = rep[3]
+        status['paper']['status_error']      = not ((rep[3] & 147) == 18)
+        status['paper']['near_end']          = bool(rep[3] & 12)
+        status['paper']['present']           = not bool(rep[3] & 96)
+
+        return status
 
     def __del__(self):
         """ Release USB interface """
         if self.device:
-            usb.util.dispose_resources(self.device)
+            self.close()
         self.device = None
 
 
