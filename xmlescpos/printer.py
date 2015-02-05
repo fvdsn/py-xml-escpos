@@ -29,38 +29,38 @@ class Usb(Escpos):
         self.interface = interface
         self.in_ep     = in_ep
         self.out_ep    = out_ep
-	self.open()
+        self.open()
 
     def open(self):
         """ Search device on USB tree and set is as escpos device """
         
-	self.device = usb.core.find(idVendor=self.idVendor, idProduct=self.idProduct)
+        self.device = usb.core.find(idVendor=self.idVendor, idProduct=self.idProduct)
         if self.device is None:
-	    raise NoDeviceError()
-	try:
+            raise NoDeviceError()
+        try:
             if self.device.is_kernel_driver_active(self.interface):
                 self.device.detach_kernel_driver(self.interface) 
             self.device.set_configuration()
             usb.util.claim_interface(self.device, self.interface)
         except usb.core.USBError as e:
-	    raise HandleDeviceError(e)
+            raise HandleDeviceError(e)
 
     def close(self):
         i = 0
-	while True:
+        while True:
             try:
                 if not self.device.is_kernel_driver_active(self.interface):
                     usb.util.release_interface(self.device, self.interface)
                     self.device.attach_kernel_driver(self.interface)
                     usb.util.dispose_resources(self.device)
-	        else:
- 	            self.device = None
-		    return True
+                else:
+                    self.device = None
+                    return True
             except usb.core.USBError as e:
                 i += 1
                 if i > 100:
                     return False
-	    
+        
             sleep(0.1)
 
     def _raw(self, msg):
@@ -71,15 +71,15 @@ class Usb(Escpos):
     
     def __extract_status(self):
         maxiterate = 0
-	rep = None
+        rep = None
         while rep == None:
             maxiterate += 1
             if maxiterate > 10000:
                 raise NoStatusError()
             r = self.device.read(self.in_ep, 20, self.interface).tolist()
             while len(r):
-		rep = r.pop()
-	return rep
+                rep = r.pop()
+        return rep
 
     def get_printer_status(self):
         status = {
@@ -88,18 +88,17 @@ class Usb(Escpos):
             'error'  : {}, 
             'paper'  : {},
         }
-	rep = []
 
         self.device.write(self.out_ep, DLE_EOT_PRINTER, self.interface)
-    	printer = self.__extract_status()    
-	self.device.write(self.out_ep, DLE_EOT_OFFLINE, self.interface)
+        printer = self.__extract_status()    
+        self.device.write(self.out_ep, DLE_EOT_OFFLINE, self.interface)
         offline = self.__extract_status()
-	self.device.write(self.out_ep, DLE_EOT_ERROR, self.interface)
+        self.device.write(self.out_ep, DLE_EOT_ERROR, self.interface)
         error = self.__extract_status()
-	self.device.write(self.out_ep, DLE_EOT_PAPER, self.interface)
-	paper = self.__extract_status()
-	print printer, offline, error, paper        
-	status['printer']['status_code']     = printer
+        self.device.write(self.out_ep, DLE_EOT_PAPER, self.interface)
+        paper = self.__extract_status()
+            
+        status['printer']['status_code']     = printer
         status['printer']['status_error']    = not ((printer & 147) == 18)
         status['printer']['online']          = not bool(printer & 8)
         status['printer']['recovery']        = bool(printer & 32)
