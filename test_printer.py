@@ -24,23 +24,36 @@ import usb
 import pprint
 import sys
 
-i = 5
 pp = pprint.PrettyPrinter(indent=4)
 
-while i:
-    i-=1
-    try:
-    	printer = Usb(0x04b8,0x0e03) 
-    	printer.receipt(test_temp)
-    	pp.pprint(printer.get_printer_status())
-    except NoDeviceError as e:
-	print "No device found %s" %str(e)
-    except HandleDeviceError as e:
-	print "Impossible to handle the device due to previous error %s" % str(e)
-    except TicketNotPrinted as e:
-	print "The ticket does not seems to have been fully printed %s" % str(e)
-    except NoStatusError as e:
-	print "Impossible to get the status of the printer %s" % str(e)
-    finally:
-	printer.close()
+try:
+    printer = Usb(0x04b8,0x0202)
+
+    printer._raw('\x1D\x28\x47\x02\x00\x30\x04');
+    printer._raw('AAAA');
+    printer._raw('\x0c');
+    
+    printer._raw('\x1c\x61\x31');
+    printer._raw('BBBB');
+    printer._raw('\x0c');
+
+    printer._raw('\x1d\x28\x47\x02\x00\x50\x04');
+    printer._raw('\x1D\x28\x47\x02\x00\x30\x04');
+    printer._raw('\x1D\x28\x47\x02\x00\x54\x00');
+    printer._raw('CCCC');
+    printer._raw('\x1D\x28\x47\x02\x00\x54\x01');
+
+    #printer.receipt(test_temp)
+    pp.pprint(printer.get_printer_status())
+
+except NoDeviceError as e:
+    print "No device found %s" %str(e)
+except HandleDeviceError as e:
+    print "Impossible to handle the device due to previous error %s" % str(e)
+except TicketNotPrinted as e:
+    print "The ticket does not seems to have been fully printed %s" % str(e)
+except NoStatusError as e:
+    print "Impossible to get the status of the printer %s" % str(e)
+finally:
+    printer.close()
 
