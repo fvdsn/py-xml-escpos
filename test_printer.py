@@ -11,6 +11,21 @@ test_temp = """
             <left>TOTAL</left>
             <right>0.15</right>
         </line>
+        <line size='double-height'>
+                    <left>TOTAL</left>
+                                <right>0.15</right>
+                                        </line>
+                                                <line size='double-height'>
+                                                            <left>TOTAL</left>
+                                                                        <right>0.15</right>
+                                                                                </line>        <line size='double-height'>
+                                                                                            <left>TOTAL</left>
+                                                                                                        <right>0.15</right>
+                                                                                                                </line>
+                                                                                                                        <line size='double-height'>
+                                                                                                                                    <left>TOTAL</left>
+                                                                                                                                                <right>0.15</right>
+                                                                                                                                                        </line>
         <barcode encoding='ean13'>
             5449000000996
         </barcode>

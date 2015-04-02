@@ -11,6 +11,7 @@ import traceback
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 
+from usb.core import USBError
 from PIL import Image
 
 try:
@@ -704,6 +705,12 @@ class Escpos:
                 self.cashdraw(5)
             if not 'cut' in root.attrib or root.attrib['cut'] == 'true' :
                 self.cut()
+        except USBError as e:
+            if e.errno != 110:
+                errmsg = str(e)+'\n'+'-'*48+'\n'+traceback.format_exc() + '-'*48+'\n'
+                self.text(errmsg)
+                self.cut()
+            raise e
 
         except Exception as e:
             errmsg = str(e)+'\n'+'-'*48+'\n'+traceback.format_exc() + '-'*48+'\n'
