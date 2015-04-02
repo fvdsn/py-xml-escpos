@@ -30,7 +30,7 @@ class Usb(Escpos):
         self.in_ep     = in_ep
         self.out_ep    = out_ep
         self.open()
-
+    
     def open(self):
         """ Search device on USB tree and set is as escpos device """
         
