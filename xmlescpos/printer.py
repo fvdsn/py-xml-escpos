@@ -21,7 +21,7 @@ class Usb(Escpos):
         @param in_ep     : Input end point
         @param out_ep    : Output end point
         """
-
+        super(Usb, self).__init__()
         self.errorText = "ERROR PRINTER\n\n\n\n\n\n"+PAPER_FULL_CUT
 
         self.idVendor  = idVendor
@@ -148,6 +148,7 @@ class Serial(Escpos):
         @param bytesize : Serial buffer size
         @param timeout  : Read/Write timeout
         """
+        super(Usb, self).__init__()
         self.devfile  = devfile
         self.baudrate = baudrate
         self.bytesize = bytesize
@@ -185,6 +186,7 @@ class Network(Escpos):
         @param host : Printer's hostname or IP address
         @param port : Port to write to
         """
+        super(Usb, self).__init__()
         self.host = host
         self.port = port
         self.open()
