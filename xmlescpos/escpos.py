@@ -306,7 +306,7 @@ class XmlLineSerializer:
         return ' ' * self.indent * self.tabwidth + self.lbuffer + ' ' * (self.width - self.clwidth - self.crwidth) + self.rbuffer
     
 
-class Escpos:
+class Escpos(object):
     """ ESC/POS Printer object """
     device    = None
     encoding  = None

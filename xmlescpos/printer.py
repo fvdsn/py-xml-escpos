@@ -148,7 +148,7 @@ class Serial(Escpos):
         @param bytesize : Serial buffer size
         @param timeout  : Read/Write timeout
         """
-        super(Usb, self).__init__()
+        super(Serial, self).__init__()
         self.devfile  = devfile
         self.baudrate = baudrate
         self.bytesize = bytesize
@@ -186,7 +186,7 @@ class Network(Escpos):
         @param host : Printer's hostname or IP address
         @param port : Port to write to
         """
-        super(Usb, self).__init__()
+        super(Network, self).__init__()
         self.host = host
         self.port = port
         self.open()
