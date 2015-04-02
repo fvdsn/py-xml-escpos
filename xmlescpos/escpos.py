@@ -191,14 +191,14 @@ class XmlSerializer:
         """ starts an inline entity with an optional style definition """
         self.stack.append('inline')
         if self.dirty:
-            self.escpos._raw(' ')
+            self.escpos._write(' ')
         if stylestack:
             self.style(stylestack)
 
     def start_block(self,stylestack=None):
         """ starts a block entity with an optional style definition """
         if self.dirty:
-            self.escpos._raw('\n')
+            self.escpos._write('\n')
             self.dirty = False
         self.stack.append('block')
         if stylestack:
@@ -207,7 +207,7 @@ class XmlSerializer:
     def end_entity(self):
         """ ends the entity definition. (but does not cancel the active style!) """
         if self.stack[-1] == 'block' and self.dirty:
-            self.escpos._raw('\n')
+            self.escpos._write('\n')
             self.dirty = False
         if len(self.stack) > 1:
             self.stack = self.stack[:-1]
@@ -231,7 +231,7 @@ class XmlSerializer:
     def linebreak(self):
         """ inserts a linebreak in the entity """
         self.dirty = False
-        self.escpos._raw('\n')
+        self.escpos._write('\n')
 
     def style(self,stylestack):
         """ apply a style to the entity (only applies to content added after the definition) """
@@ -239,7 +239,7 @@ class XmlSerializer:
 
     def raw(self,raw):
         """ puts raw text or escpos command in the entity without affecting the state of the serializer """
-        self.escpos._raw(raw)
+        self.escpos._write(raw)
 
 class XmlLineSerializer:
     """ 
@@ -312,6 +312,16 @@ class Escpos:
     encoding  = None
     img_cache = {}
 
+    def __init__(self):
+        self.buffer = ''
+
+    def _write(self, message):
+        self.buffer = self.buffer + message
+
+    def flush(self):
+        self._raw(self.buffer)
+        self.buffer = ''
+
     def _check_image_size(self, size):
         """ Check and fix the size of the image to 32 bits """
         if size % 32 == 0:
@@ -330,9 +340,9 @@ class Escpos:
         buffer = ""
 
        
-        self._raw(S_RASTER_N)
+        self._write(S_RASTER_N)
         buffer = "%02X%02X%02X%02X" % (((size[0]/size[1])/8), 0, size[1], 0)
-        self._raw(buffer.decode('hex'))
+        self._write(buffer.decode('hex'))
         buffer = ""
 
         while i < len(line):
@@ -341,7 +351,7 @@ class Escpos:
             i += 8
             cont += 1
             if cont % 4 == 0:
-                self._raw(buffer.decode("hex"))
+                self._write(buffer.decode("hex"))
                 buffer = ""
                 cont = 0
 
@@ -356,7 +366,7 @@ class Escpos:
             if output:
                 output(string)
             else:
-                self._raw(string)
+                self._write(string)
        
         raw += S_RASTER_N
         buffer = "%02X%02X%02X%02X" % (((size[0]/size[1])/8), 0, size[1], 0)
@@ -463,7 +473,7 @@ class Escpos:
 
         print 'raw image'
 
-        self._raw(self.img_cache[id])
+        self._write(self.img_cache[id])
 
     def qr(self,text):
         """ Print QR Code for the provided string """
@@ -478,51 +488,51 @@ class Escpos:
     def barcode(self, code, bc, width=255, height=2, pos='below', font='a'):
         """ Print Barcode """
         # Align Bar Code()
-        self._raw(TXT_ALIGN_CT)
+        self._write(TXT_ALIGN_CT)
         # Height
         if height >=2 or height <=6:
-            self._raw(BARCODE_HEIGHT)
+            self._write(BARCODE_HEIGHT)
         else:
             raise BarcodeSizeError()
         # Width
         if width >= 1 or width <=255:
-            self._raw(BARCODE_WIDTH)
+            self._write(BARCODE_WIDTH)
         else:
             raise BarcodeSizeError()
         # Font
         if font.upper() == "B":
-            self._raw(BARCODE_FONT_B)
+            self._write(BARCODE_FONT_B)
         else: # DEFAULT FONT: A
-            self._raw(BARCODE_FONT_A)
+            self._write(BARCODE_FONT_A)
         # Position
         if pos.upper() == "OFF":
-            self._raw(BARCODE_TXT_OFF)
+            self._write(BARCODE_TXT_OFF)
         elif pos.upper() == "BOTH":
-            self._raw(BARCODE_TXT_BTH)
+            self._write(BARCODE_TXT_BTH)
         elif pos.upper() == "ABOVE":
-            self._raw(BARCODE_TXT_ABV)
+            self._write(BARCODE_TXT_ABV)
         else:  # DEFAULT POSITION: BELOW 
-            self._raw(BARCODE_TXT_BLW)
+            self._write(BARCODE_TXT_BLW)
         # Type 
         if bc.upper() == "UPC-A":
-            self._raw(BARCODE_UPC_A)
+            self._write(BARCODE_UPC_A)
         elif bc.upper() == "UPC-E":
-            self._raw(BARCODE_UPC_E)
+            self._write(BARCODE_UPC_E)
         elif bc.upper() == "EAN13":
-            self._raw(BARCODE_EAN13)
+            self._write(BARCODE_EAN13)
         elif bc.upper() == "EAN8":
-            self._raw(BARCODE_EAN8)
+            self._write(BARCODE_EAN8)
         elif bc.upper() == "CODE39":
-            self._raw(BARCODE_CODE39)
+            self._write(BARCODE_CODE39)
         elif bc.upper() == "ITF":
-            self._raw(BARCODE_ITF)
+            self._write(BARCODE_ITF)
         elif bc.upper() == "NW7":
-            self._raw(BARCODE_NW7)
+            self._write(BARCODE_NW7)
         else:
             raise BarcodeTypeError()
         # Print Code
         if code:
-            self._raw(code)
+            self._write(code)
         else:
             raise exception.BarcodeCodeError()
 
@@ -695,13 +705,14 @@ class Escpos:
             stylestack      = StyleStack() 
             serializer      = XmlSerializer(self)
             root            = ET.fromstring(xml.encode('utf-8'))
+
             if 'sheet' in root.attrib and root.attrib['sheet'] == 'slip':
-                self._raw(SHEET_SLIP_MODE)
+                self._write(SHEET_SLIP_MODE)
                 self.slip_sheet_mode = True
             else:
-                self._raw(SHEET_ROLL_MODE)
+                self._write(SHEET_ROLL_MODE)
 
-            self._raw(stylestack.to_escpos())
+            self._write(stylestack.to_escpos())
 
             print_elem(stylestack,serializer,root)
 
@@ -710,10 +721,11 @@ class Escpos:
                 self.cashdraw(5)
             if not 'cut' in root.attrib or root.attrib['cut'] == 'true' :
                 if self.slip_sheet_mode:
-                    self.cut()
-                    self._raw(CTL_FF)
+                    self._write(CTL_FF)
                 else:
                     self.cut()
+
+            self.flush()
 
         except USBError as e:
             if e.errno != 110:
@@ -839,72 +851,72 @@ class Escpos:
             else:
                 break
 
-        self._raw(txt)
+        self._write(txt)
         
     def set(self, align='left', font='a', type='normal', width=1, height=1):
         """ Set text properties """
         # Align
         if align.upper() == "CENTER":
-            self._raw(TXT_ALIGN_CT)
+            self._write(TXT_ALIGN_CT)
         elif align.upper() == "RIGHT":
-            self._raw(TXT_ALIGN_RT)
+            self._write(TXT_ALIGN_RT)
         elif align.upper() == "LEFT":
-            self._raw(TXT_ALIGN_LT)
+            self._write(TXT_ALIGN_LT)
         # Font
         if font.upper() == "B":
-            self._raw(TXT_FONT_B)
+            self._write(TXT_FONT_B)
         else:  # DEFAULT FONT: A
-            self._raw(TXT_FONT_A)
+            self._write(TXT_FONT_A)
         # Type
         if type.upper() == "B":
-            self._raw(TXT_BOLD_ON)
-            self._raw(TXT_UNDERL_OFF)
+            self._write(TXT_BOLD_ON)
+            self._write(TXT_UNDERL_OFF)
         elif type.upper() == "U":
-            self._raw(TXT_BOLD_OFF)
-            self._raw(TXT_UNDERL_ON)
+            self._write(TXT_BOLD_OFF)
+            self._write(TXT_UNDERL_ON)
         elif type.upper() == "U2":
-            self._raw(TXT_BOLD_OFF)
-            self._raw(TXT_UNDERL2_ON)
+            self._write(TXT_BOLD_OFF)
+            self._write(TXT_UNDERL2_ON)
         elif type.upper() == "BU":
-            self._raw(TXT_BOLD_ON)
-            self._raw(TXT_UNDERL_ON)
+            self._write(TXT_BOLD_ON)
+            self._write(TXT_UNDERL_ON)
         elif type.upper() == "BU2":
-            self._raw(TXT_BOLD_ON)
-            self._raw(TXT_UNDERL2_ON)
+            self._write(TXT_BOLD_ON)
+            self._write(TXT_UNDERL2_ON)
         elif type.upper == "NORMAL":
-            self._raw(TXT_BOLD_OFF)
-            self._raw(TXT_UNDERL_OFF)
+            self._write(TXT_BOLD_OFF)
+            self._write(TXT_UNDERL_OFF)
         # Width
         if width == 2 and height != 2:
-            self._raw(TXT_NORMAL)
-            self._raw(TXT_2WIDTH)
+            self._write(TXT_NORMAL)
+            self._write(TXT_2WIDTH)
         elif height == 2 and width != 2:
-            self._raw(TXT_NORMAL)
-            self._raw(TXT_2HEIGHT)
+            self._write(TXT_NORMAL)
+            self._write(TXT_2HEIGHT)
         elif height == 2 and width == 2:
-            self._raw(TXT_2WIDTH)
-            self._raw(TXT_2HEIGHT)
+            self._write(TXT_2WIDTH)
+            self._write(TXT_2HEIGHT)
         else: # DEFAULT SIZE: NORMAL
-            self._raw(TXT_NORMAL)
+            self._write(TXT_NORMAL)
 
 
     def cut(self, mode=''):
         """ Cut paper """
         # Fix the size between last line and cut
         # TODO: handle this with a line feed
-        self._raw("\n\n\n\n\n\n")
+        self._write("\n\n\n\n\n\n")
         if mode.upper() == "PART":
-            self._raw(PAPER_PART_CUT)
+            self._write(PAPER_PART_CUT)
         else: # DEFAULT MODE: FULL CUT
-            self._raw(PAPER_FULL_CUT)
+            self._write(PAPER_FULL_CUT)
 
 
     def cashdraw(self, pin):
         """ Send pulse to kick the cash drawer """
         if pin == 2:
-            self._raw(CD_KICK_2)
+            self._write(CD_KICK_2)
         elif pin == 5:
-            self._raw(CD_KICK_5)
+            self._write(CD_KICK_5)
         else:
             raise CashDrawerError()
 
@@ -912,11 +924,11 @@ class Escpos:
     def hw(self, hw):
         """ Hardware operations """
         if hw.upper() == "INIT":
-            self._raw(HW_INIT)
+            self._write(HW_INIT)
         elif hw.upper() == "SELECT":
-            self._raw(HW_SELECT)
+            self._write(HW_SELECT)
         elif hw.upper() == "RESET":
-            self._raw(HW_RESET)
+            self._write(HW_RESET)
         else: # DEFAULT: DOES NOTHING
             pass
 
@@ -924,12 +936,12 @@ class Escpos:
     def control(self, ctl):
         """ Feed control sequences """
         if ctl.upper() == "LF":
-            self._raw(CTL_LF)
+            self._write(CTL_LF)
         elif ctl.upper() == "FF":
-            self._raw(CTL_FF)
+            self._write(CTL_FF)
         elif ctl.upper() == "CR":
-            self._raw(CTL_CR)
+            self._write(CTL_CR)
         elif ctl.upper() == "HT":
-            self._raw(CTL_HT)
+            self._write(CTL_HT)
         elif ctl.upper() == "VT":
-            self._raw(CTL_VT)
+            self._write(CTL_VT)

@@ -65,9 +65,16 @@ class Usb(Escpos):
 
     def _raw(self, msg):
         """ Print any command sent in raw format """
-        if len(msg) != self.device.write(self.out_ep, msg, self.interface):
-            #self.device.write(self.out_ep, self.errorText, self.interface)
+        msg_len = len(msg)
+        i       = 0
+        while ((msg_len > 0) or (i <= 1000)):
+            printed_len = self.device.write(self.out_ep, msg, self.interface)
+            msg = msg[printed_len:]
+            msg_len = msg_len - printed_len
+        if i > 1000:
             raise TicketNotPrinted()
+
+        print "\nDEBUG DRIVER :: printer receive the receipt on %d parts\n"
     
     def __extract_status(self):
         maxiterate = 0
