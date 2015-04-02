@@ -319,6 +319,10 @@ class Escpos:
         self.buffer = self.buffer + message
 
     def flush(self):
+        fname = 'receipt_%d.log' % time.time()
+        f = open(fname,'w')
+        f.write(self.buffer)
+        f.close()
         self._raw(self.buffer)
         self.buffer = ''
 
