@@ -13,7 +13,7 @@ import xml.dom.minidom as minidom
 
 from usb.core import USBError
 from PIL import Image
-
+from time import sleep
 try:
     import jcconv
 except ImportError:
@@ -317,6 +317,9 @@ class Escpos(object):
 
     def _write(self, message):
         self.buffer = self.buffer + message
+    
+    def rollback(self):
+        self.buffer = ''
 
     def flush(self):
         fname = 'receipt_%d.log' % time.time()
@@ -709,11 +712,13 @@ class Escpos(object):
             stylestack      = StyleStack() 
             serializer      = XmlSerializer(self)
             root            = ET.fromstring(xml.encode('utf-8'))
-
+            self._raw(HW_INIT)
+            sleep(0.1)
             if 'sheet' in root.attrib and root.attrib['sheet'] == 'slip':
                 self._write(SHEET_SLIP_MODE)
                 self.slip_sheet_mode = True
             else:
+                self.slip_sheet_mode = False
                 self._write(SHEET_ROLL_MODE)
 
             self._write(stylestack.to_escpos())
@@ -726,6 +731,7 @@ class Escpos(object):
             if not 'cut' in root.attrib or root.attrib['cut'] == 'true' :
                 if self.slip_sheet_mode:
                     self._write(CTL_FF)
+                    self.cut() # to remove after test
                 else:
                     self.cut()
 
@@ -736,13 +742,16 @@ class Escpos(object):
                 errmsg = str(e)+'\n'+'-'*48+'\n'+traceback.format_exc() + '-'*48+'\n'
                 self.text(errmsg)
                 self.cut()
+                self.flush()
+            else:
+                self.rollback()
             raise e
 
         except Exception as e:
             errmsg = str(e)+'\n'+'-'*48+'\n'+traceback.format_exc() + '-'*48+'\n'
             self.text(errmsg)
             self.cut()
-
+            self.flush()
             raise e
 
     def text(self,txt):
