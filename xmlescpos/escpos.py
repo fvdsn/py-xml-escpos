@@ -712,15 +712,32 @@ class Escpos(object):
             stylestack      = StyleStack() 
             serializer      = XmlSerializer(self)
             root            = ET.fromstring(xml.encode('utf-8'))
+
+            if 'sheet' in root.attrib and root.attrib['sheet'] == 'slip':
+                SHEET_MODE = SHEET_SLIP_MODE
+                
+                #In SLIP MODE we cant print if the printer is waiting for paper.
+                while True:
+                    status = self.get_printer_status()
+                    if status['slip']['waiting']:
+                        sleep(1)
+                    else:
+                        break
+            else:
+                SHEET_MODE = SHEET_ROLL_MODE
+
+            #Clear buffer and reset configuration
+            self._raw(HW_CLEAR_BUFFER)
+            clear_status = self.__extract_status()
+            sleep(0.1)
             self._raw(HW_INIT)
             sleep(0.1)
-            if 'sheet' in root.attrib and root.attrib['sheet'] == 'slip':
-                self._write(SHEET_SLIP_MODE)
-                self.slip_sheet_mode = True
-            else:
-                self.slip_sheet_mode = False
-                self._write(SHEET_ROLL_MODE)
 
+            print "clear status %x" %clear_status
+
+
+            #select sheet mode (roll paper or slip sheet)
+            self._write(SHEET_MODE)
             self._write(stylestack.to_escpos())
 
             print_elem(stylestack,serializer,root)

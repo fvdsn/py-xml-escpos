@@ -86,7 +86,7 @@ class Usb(Escpos):
         while rep == None:
             maxiterate += 1
             if maxiterate > 10000:
-                raise NoStatusError()
+                return 0
             r = self.device.read(self.in_ep, 20, self.interface).tolist()
             while len(r):
                 rep = r.pop()
@@ -101,13 +101,19 @@ class Usb(Escpos):
         }
 
         self.device.write(self.out_ep, DLE_EOT_PRINTER, self.interface)
-        printer = self.__extract_status()    
+        printer = self.__extract_status()  
+
         self.device.write(self.out_ep, DLE_EOT_OFFLINE, self.interface)
         offline = self.__extract_status()
+
         self.device.write(self.out_ep, DLE_EOT_ERROR, self.interface)
         error = self.__extract_status()
+
         self.device.write(self.out_ep, DLE_EOT_PAPER, self.interface)
         paper = self.__extract_status()
+
+        self.device.write(self.out_ep, DLE_EOT_SLIP, self.interface)
+        slip = self.__extract_status()
             
         status['printer']['status_code']     = printer
         status['printer']['status_error']    = not ((printer & 147) == 18)
@@ -131,6 +137,11 @@ class Usb(Escpos):
         status['paper']['status_error']      = not ((paper & 147) == 18)
         status['paper']['near_end']          = bool(paper & 12)
         status['paper']['present']           = not bool(paper & 96)
+        status['slip']['status_code']        = slip
+        status['slip']['selected']           = not bool(slip & 4)
+        status['slip']['waiting']            = bool(slip & 8)
+        status['slip']['paper-top']          = not bool(slip & 32)
+        status['slip']['paper-bot']          = not bool(slip & 64)
 
         return status
 
