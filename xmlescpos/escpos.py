@@ -745,10 +745,10 @@ class Escpos(object):
             if 'open-cashdrawer' in root.attrib and root.attrib['open-cashdrawer'] == 'true':
                 self.cashdraw(2)
                 self.cashdraw(5)
-            if not 'cut' in root.attrib or root.attrib['cut'] == 'true' :
-                if self.slip_sheet_mode:
+            if not 'cut' in root.attrib or root.attrib['cut'] == 'true':
+                if SHEET_MODE == SHEET_SLIP_MODE:
                     self._write(CTL_FF)
-                    self.cut() # to remove after test
+                    self.cut()  # to remove after test
                 else:
                     self.cut()
 
