@@ -61,10 +61,13 @@ themselves. The styling is inherited by child elements.
 ## Supported HTML Tags
 ### Inline Tags
  - `span`,`em`,`b`
+ 
 ### Block level Tags
  - `p`,`div`,`section`,`article`,`header`,`footer`,`li`,`h1-5`,`hr`
+
 ### List tags
  - `ul`,`ol`
+
 The indentation width is determined by the `tabwidth`
 attribute, which specifies the indentation in number of white
 space characters. `tabwidth` is inherited by child elements, 
